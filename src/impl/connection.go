@@ -2,6 +2,7 @@ package impl
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -19,9 +20,10 @@ type Connection struct {
 // InitConnection 初始化
 func InitConnection(wsConn *websocket.Conn) (conn *Connection, err error) {
 	conn = &Connection{
-		wsConn:  wsConn,
-		inChan:  make(chan []byte, 1000),
-		outChan: make(chan []byte, 1000),
+		wsConn:    wsConn,
+		inChan:    make(chan []byte, 1000),
+		outChan:   make(chan []byte, 1000),
+		closeChan: make(chan struct{}),
 	}
 
 	go conn.readLoop()
@@ -53,9 +55,7 @@ func (conn *Connection) WriteMessage(data []byte) (err error) {
 // Close 关闭
 func (conn *Connection) Close() {
 	conn.mutex.Lock()
-	defer func() {
-		conn.mutex.Unlock()
-	}()
+	defer conn.mutex.Unlock()
 	if conn.isClosed {
 		return
 	}
@@ -63,6 +63,7 @@ func (conn *Connection) Close() {
 	conn.isClosed = true
 	// 线程安全，可重入的Close
 	conn.wsConn.Close()
+	fmt.Println("connection closed.")
 }
 
 func (conn *Connection) readLoop() {
